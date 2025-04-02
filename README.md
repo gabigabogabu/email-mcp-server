@@ -74,4 +74,4 @@ And the following MCP tools:
 
 ## License
 
-ISC 
+ISC License - see [LICENSE](LICENSE) for details 
