@@ -1,0 +1,30 @@
+{
+  "name": "imap-mcp",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "nodemon --watch src --ext ts --exec \"npm run build && npm start\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "Email MCP (Model Context Protocol) server using imapflow and nodemailer",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.8.0",
+    "dotenv": "^16.3.1",
+    "imapflow": "^1.0.142",
+    "nodemailer": "^6.9.7",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/imapflow": "^1.0.20",
+    "@types/node": "^22.13.17",
+    "@types/nodemailer": "^6.4.17",
+    "nodemon": "^3.1.9",
+    "typescript": "^5.8.2"
+  }
+}
