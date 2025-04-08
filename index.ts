@@ -1,32 +1,22 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import dotenv from 'dotenv';
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { ImapFlow, MessageAddressObject, FetchQueryObject } from 'imapflow';
+import { ImapFlow, type MessageAddressObject, type FetchQueryObject } from 'imapflow';
 import nodemailer from 'nodemailer';
 import { z } from 'zod';
 
-class InvalidEnvError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'InvalidEnvError';
-  }
-}
-
 const parseEnv = () => {
-  dotenv.config();
-  const envParseResult = z.object({
+  dotenv.config({ path: process.env.DOTENV_CONFIG_PATH });
+  return z.object({
     EMAIL_USER: z.string().email(),
     EMAIL_PASSWORD: z.string().min(1),
     IMAP_HOST: z.string().min(1),
     IMAP_PORT: z.string().regex(/^\d+$/).transform(Number),
     SMTP_HOST: z.string().min(1),
     SMTP_PORT: z.string().regex(/^\d+$/).transform(Number),
-  }).safeParse(process.env);
-  if (!envParseResult.success)
-    throw new InvalidEnvError(`Environment validation failed: ${envParseResult.error}`);
-  return envParseResult.data;
+  }).parse(process.env);
 }
 const env = parseEnv();
 
