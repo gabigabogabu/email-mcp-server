@@ -24,7 +24,8 @@ const parseEnv = () => {
     SMTP_HOST: z.string().min(1),
     SMTP_PORT: z.string().regex(/^\d+$/).transform(Number),
   }).safeParse(process.env);
-  if (!envParseResult.success) throw new InvalidEnvError('Environment validation failed:');
+  if (!envParseResult.success)
+    throw new InvalidEnvError(`Environment validation failed: ${envParseResult.error}`);
   return envParseResult.data;
 }
 const env = parseEnv();
@@ -125,7 +126,7 @@ server.tool(
         }]
       };
     } catch (error) {
-      console.error("Error sending email:", error);
+      console.error({ message: 'Error sending email', error });
       const err = error as Error;
       return {
         content: [{ type: "text", text: `Error sending email: ${err.message}` }],
@@ -151,7 +152,7 @@ let searchQuerySchema = z.object({
   cc: z.string().optional(),
   bcc: z.string().optional(),
   body: z.string().optional(),
-  subject: z.string().min(1),
+  subject: z.string().optional(),
   larger: z.number().int().positive().optional(),
   smaller: z.number().int().positive().optional(),
   uid: z.string().optional(),
@@ -193,10 +194,11 @@ server.tool(
   {
     query: searchQuerySchema,
     fetchOptions: fetchOptionsSchema,
-    folder: z.string().default("INBOX"),
-    limit: z.number().int().positive().default(10),
+    folder: z.string().optional().default("INBOX"),
+    limit: z.number().int().positive().optional().default(10),
   },
   async ({ query, folder, limit, fetchOptions }) => {
+    console.log({ context: 'search_emails', query, folder, limit, fetchOptions });
     const client = createImapClient();
 
     try {
@@ -205,6 +207,7 @@ server.tool(
 
       // Search for messages matching the query
       const uids = await client.search(query, { uid: true });
+      console.log({ context: 'search_emails', uids });
 
       const messages: EmailMessage[] = [];
 
@@ -223,11 +226,13 @@ server.tool(
         }
       }
 
+      console.log({ context: 'search_emails', messages });
+
       return {
         content: [{ type: "text", text: JSON.stringify(messages, null, 2) }]
       };
     } catch (error) {
-      console.error("Error searching emails:", error);
+      console.error({ message: 'Error searching emails', error });
       const err = error as Error;
       return {
         content: [{ type: "text", text: `Error searching emails: ${err.message}` }],
@@ -251,7 +256,7 @@ server.tool(
 
       const mailboxes: EmailFolder[] = [];
       const listResponse = await client.list();
-
+      console.log({ context: 'list_folders', listResponse });
       for (const mailbox of listResponse) {
         mailboxes.push({
           name: mailbox.name,
@@ -260,12 +265,12 @@ server.tool(
           flags: Array.from(mailbox.flags)
         });
       }
-
+      console.log({ context: 'list_folders', mailboxes });
       return {
         content: [{ type: "text", text: JSON.stringify(mailboxes, null, 2) }]
       };
     } catch (error) {
-      console.error("Error listing folders:", error);
+      console.error({ message: 'Error listing folders', error });
       const err = error as Error;
       return {
         content: [{ type: "text", text: `Error listing folders: ${err.message}` }],
@@ -291,7 +296,7 @@ server.resource(
       // Get the 10 most recent messages
       const messages: EmailMessage[] = [];
       const fetchOptions: FetchQueryObject = { envelope: true };
-      
+
       for await (const message of client.fetch('1:*', fetchOptions)) {
         messages.push({
           id: message.uid,
@@ -301,7 +306,7 @@ server.resource(
           date: message.envelope.date
         });
       }
-
+      console.log({ context: 'inbox', messages });
       // Sort by date, newest first, and limit to 10
       messages.sort((a, b) => b.date.getTime() - a.date.getTime());
       const recentMessages = messages.slice(0, 10);
@@ -314,7 +319,7 @@ server.resource(
         }]
       };
     } catch (error) {
-      console.error("Error reading inbox:", error);
+      console.error({ message: 'Error reading inbox', error });
       throw error;
     } finally {
       await client.logout();
@@ -332,7 +337,7 @@ server.resource(
       await client.connect();
       const mailboxes: EmailFolder[] = [];
       const listResponse = await client.list();
-
+      console.log({ context: 'folders', listResponse });
       for (const mailbox of listResponse) {
         mailboxes.push({
           name: mailbox.name,
@@ -341,7 +346,7 @@ server.resource(
           flags: Array.from(mailbox.flags)
         });
       }
-
+      console.log({ context: 'folders', mailboxes });
       return {
         contents: [{
           uri: "mailto:" + emailUser + "/folders",
@@ -350,7 +355,7 @@ server.resource(
         }]
       };
     } catch (error) {
-      console.error("Error listing folders:", error);
+      console.error({ message: 'Error listing folders', error });
       throw error;
     } finally {
       await client.logout();
@@ -359,9 +364,9 @@ server.resource(
 );
 
 // Start the MCP server
-async function runServer(): Promise<void> {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-}
-
-runServer().catch(console.error); 
+const transport = new StdioServerTransport();
+server.connect(transport).catch((err) => {
+  console.error({ message: 'Server failed to start', error: err });
+}).then(() => {
+  console.log({ message: 'Server started' });
+});
