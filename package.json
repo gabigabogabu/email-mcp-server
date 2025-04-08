@@ -4,6 +4,8 @@
   "main": "index.ts",
   "type": "module",
   "scripts": {
+    "logs": "bun logs.ts --follow",
+    "logs:clear": "bun logs.ts --clear"
   },
   "keywords": [],
   "author": "",
